@@ -1,50 +1,89 @@
 # HOA4.1_Saporna
 Activity 4: Running Elevated Ad hoc Commands
 
-- name: Create Prometheus configuration directory
-  file:
-    path: /etc/prometheus
-    state: directory
+---
+- name: Install Prometheus on CentOS 7
+  hosts: centos
+  become: yes
+  tasks:
 
-- name: Move example configuration file
-  copy:
-    src: /usr/local/bin/prometheus-2.42.0.linux-amd64/prometheus.yml
-    dest: /etc/prometheus/prometheus.yml
+    - name: Install EPEL repo
+      yum:
+        name: epel-release
+        state: latest
 
-- name: Create Prometheus systemd service file
-  copy:
-    dest: /etc/systemd/system/prometheus.service
-    content: |
-      [Unit]
-      Description=Prometheus
-      Wants=network-online.target
-      After=network-online.target
+    - name: Install Prometheus dependencies
+      yum:
+        name:
+          - wget
+          - curl
+          - gcc
+          - make
+          - glibc
+        state: present
 
-      [Service]
-      User=root
-      ExecStart=/usr/local/bin/prometheus \
-        --config.file=/etc/prometheus/prometheus.yml \
-        --storage.tsdb.path=/var/lib/prometheus/ \
-        --web.listen-address="0.0.0.0:9090"
+    - name: Download Prometheus binary
+      get_url:
+        url: https://github.com/prometheus/prometheus/releases/download/v2.42.0/prometheus-2.42.0.linux-amd64.tar.gz
+        dest: /tmp/prometheus.tar.gz
 
-      [Install]
-      WantedBy=multi-user.target
+    - name: Extract Prometheus binary
+      unarchive:
+        src: /tmp/prometheus.tar.gz
+        dest: /usr/local/bin/
+        remote_src: yes
 
-- name: Create Prometheus storage directory
-  file:
-    path: /var/lib/prometheus
-    state: directory
+    - name: Move Prometheus binary to /usr/local/bin
+      command: mv /usr/local/bin/prometheus-2.42.0.linux-amd64/prometheus /usr/local/bin/
+      args:
+        creates: /usr/local/bin/prometheus
 
-- name: Reload systemd daemon
-  command: systemctl daemon-reload
+    - name: Move promtool binary to /usr/local/bin
+      command: mv /usr/local/bin/prometheus-2.42.0.linux-amd64/promtool /usr/local/bin/
+      args:
+        creates: /usr/local/bin/promtool
 
-- name: Start Prometheus service
-  systemd:
-    name: prometheus
-    state: started
-    enabled: yes
+    - name: Create Prometheus configuration directory
+      file:
+        path: /etc/prometheus
+        state: directory
 
-  An exception occurred during task execution. To see the full traceback, use -vvv. The error was: AnsibleFileNotFound: Could not find or access '/usr/local/bin/prometheus-2.42.0.linux-amd64/prometheus'
-fatal: [192.168.56.115]: FAILED! => {"changed": false, "msg": "Could not find or access '/usr/local/bin/prometheus-2.42.0.linux-amd64/prometheus'"}
+    - name: Move example configuration file
+      copy:
+        src: /usr/local/bin/prometheus-2.42.0.linux-amd64/prometheus.yml
+        dest: /etc/prometheus/prometheus.yml
+
+    - name: Create Prometheus systemd service file
+      copy:
+        dest: /etc/systemd/system/prometheus.service
+        content: |
+          [Unit]
+          Description=Prometheus
+          Wants=network-online.target
+          After=network-online.target
+
+          [Service]
+          User=root
+          ExecStart=/usr/local/bin/prometheus \
+            --config.file=/etc/prometheus/prometheus.yml \
+            --storage.tsdb.path=/var/lib/prometheus/ \
+            --web.listen-address="0.0.0.0:9090"
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Create Prometheus storage directory
+      file:
+        path: /var/lib/prometheus
+        state: directory
+
+    - name: Reload systemd daemon
+      command: systemctl daemon-reload
+
+    - name: Start Prometheus service
+      systemd:
+        name: prometheus
+        state: started
+        enabled: yes
 
 
