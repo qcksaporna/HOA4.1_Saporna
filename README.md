@@ -43,3 +43,8 @@ Activity 4: Running Elevated Ad hoc Commands
     name: prometheus
     state: started
     enabled: yes
+
+  An exception occurred during task execution. To see the full traceback, use -vvv. The error was: AnsibleFileNotFound: Could not find or access '/usr/local/bin/prometheus-2.42.0.linux-amd64/prometheus'
+fatal: [192.168.56.115]: FAILED! => {"changed": false, "msg": "Could not find or access '/usr/local/bin/prometheus-2.42.0.linux-amd64/prometheus'"}
+
+
