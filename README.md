@@ -75,6 +75,18 @@ Activity 4: Running Elevated Ad hoc Commands
     enabled: yes
     state: started
 
+- name: Open Prometheus port in the firewall
+  firewalld:
+    port: 9090/tcp
+    permanent: yes
+    state: enabled
+
+- name: Reload firewall to apply changes
+  firewalld:
+    immediate: yes
+    state: reloaded
+
+
 
 
 
