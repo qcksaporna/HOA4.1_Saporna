@@ -1,16 +1,16 @@
 # HOA4.1_Saporna
 ---
-- name: Ensure necessary packages are installed
+- name: Ensure EPEL repository is installed
   yum:
-    name: 
-      - wget
-      - curl
-    state: present
+    name: epel-release
+    state: latest
+  when: ansible_distribution == "CentOS"
 
-- name: Import GPG key
+- name: Import GPG key for Elasticsearch
   rpm_key:
     state: present
     key: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+  when: ansible_distribution == "CentOS"
 
 - name: Create Elasticsearch repository
   copy:
@@ -24,22 +24,28 @@
       enabled=1
       autorefresh=1
       type=rpm-md
+  when: ansible_distribution == "CentOS"
 
-- name: Install Elasticsearch from the repository
+- name: Install Elasticsearch
   yum:
     name: elasticsearch
     state: present
-
-- name: Install Elasticsearch from RPM link
-  yum:
-    name: https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.10.2-x86_64.rpm
-    state: present
+  when: ansible_distribution == "CentOS"
 
 - name: Start and enable Elasticsearch service
   systemd:
     name: elasticsearch
     enabled: yes
     state: started
+  when: ansible_distribution == "CentOS"
+
+- name: Wait for Elasticsearch to start
+  wait_for:
+    port: 9200
+    delay: 10
+    timeout: 60
+  when: ansible_distribution == "CentOS"
+
 
 
 
