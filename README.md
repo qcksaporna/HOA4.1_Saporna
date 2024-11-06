@@ -1,52 +1,138 @@
-# HOA4.1_Saporna
 ---
-- name: Ensure EPEL repository is installed
-  yum:
-    name: epel-release
-    state: latest
-  when: ansible_distribution == "CentOS"
+- name: Install and configure Elastic Stack, Monitoring tools, and LAMP stack
+  hosts: all
+  become: yes
+  vars_files:
+    - config.yaml
 
-- name: Import GPG key for Elasticsearch
-  rpm_key:
-    state: present
-    key: https://artifacts.elastic.co/GPG-KEY-elasticsearch
-  when: ansible_distribution == "CentOS"
+  tasks:
+    - name: Install common dependencies
+      package:
+        name:
+          - curl
+          - wget
+          - unzip
+          - vim
+          - net-tools
+        state: present
 
-- name: Create Elasticsearch repository
-  copy:
-    dest: /etc/yum.repos.d/elasticsearch.repo
-    content: |
-      [elasticsearch-8.x]
-      name=Elasticsearch repository for 8.x packages
-      baseurl=https://artifacts.elastic.co/packages/8.x/yum
-      gpgcheck=1
-      gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
-      enabled=1
-      autorefresh=1
-      type=rpm-md
-  when: ansible_distribution == "CentOS"
+# ------------------------------------------------------
+# Elastic Stack Installation (Elasticsearch, Logstash, Kibana)
+# ------------------------------------------------------
+- name: Install Elastic Stack on CentOS
+  hosts: elastic_stack
+  become: yes
+  tasks:
+    - name: Install Elasticsearch
+      when: ansible_os_family == 'RedHat'
+      yum:
+        name: "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{ elastic_stack.elasticsearch_version }}-x86_64.rpm"
+        state: present
 
-- name: Install Elasticsearch
-  yum:
-    name: elasticsearch
-    state: present
-  when: ansible_distribution == "CentOS"
+    - name: Start Elasticsearch service
+      service:
+        name: elasticsearch
+        state: started
+        enabled: yes
 
-- name: Start and enable Elasticsearch service
-  systemd:
-    name: elasticsearch
-    enabled: yes
-    state: started
-  when: ansible_distribution == "CentOS"
+    - name: Install Logstash
+      when: ansible_os_family == 'RedHat'
+      yum:
+        name: "https://artifacts.elastic.co/downloads/logstash/logstash-{{ elastic_stack.logstash_version }}-x86_64.rpm"
+        state: present
 
-- name: Wait for Elasticsearch to start
-  wait_for:
-    port: 9200
-    delay: 10
-    timeout: 60
-  when: ansible_distribution == "CentOS"
+    - name: Start Logstash service
+      service:
+        name: logstash
+        state: started
+        enabled: yes
 
+    - name: Install Kibana
+      when: ansible_os_family == 'RedHat'
+      yum:
+        name: "https://artifacts.elastic.co/downloads/kibana/kibana-{{ elastic_stack.kibana_version }}-x86_64.rpm"
+        state: present
 
+    - name: Start Kibana service
+      service:
+        name: kibana
+        state: started
+        enabled: yes
 
+# ------------------------------------------------------
+# Monitoring Tools Installation (Prometheus, Grafana, InfluxDB)
+# ------------------------------------------------------
+- name: Install Monitoring Tools on Ubuntu
+  hosts: monitoring
+  become: yes
+  tasks:
+    - name: Install Prometheus
+      when: ansible_os_family == 'Debian'
+      apt:
+        deb: "https://github.com/prometheus/prometheus/releases/download/v{{ monitoring.prometheus_version }}/prometheus-{{ monitoring.prometheus_version }}.linux-amd64.tar.gz"
+        state: present
+        force: yes
 
+    - name: Install Grafana
+      when: ansible_os_family == 'Debian'
+      apt:
+        deb: "https://dl.grafana.com/oss/release/grafana-{{ monitoring.grafana_version }}-amd64.deb"
+        state: present
 
+    - name: Install InfluxDB
+      when: ansible_os_family == 'Debian'
+      apt:
+        deb: "https://dl.influxdata.com/influxdb/releases/influxdb-{{ monitoring.influxdb_version }}_amd64.deb"
+        state: present
+
+    - name: Start Prometheus service
+      service:
+        name: prometheus
+        state: started
+        enabled: yes
+
+    - name: Start Grafana service
+      service:
+        name: grafana-server
+        state: started
+        enabled: yes
+
+    - name: Start InfluxDB service
+      service:
+        name: influxdb
+        state: started
+        enabled: yes
+
+# ------------------------------------------------------
+# LAMP Stack Installation (Apache, PHP, MariaDB)
+# ------------------------------------------------------
+- name: Install LAMP Stack on CentOS
+  hosts: lamp_stack
+  become: yes
+  tasks:
+    - name: Install Apache
+      yum:
+        name: httpd
+        state: present
+
+    - name: Start Apache service
+      service:
+        name: httpd
+        state: started
+        enabled: yes
+
+    - name: Install PHP
+      yum:
+        name: php
+        state: present
+
+    - name: Install MariaDB
+      yum:
+        name: mariadb-server
+        state: present
+
+    - name: Start MariaDB service
+      service:
+        name: mariadb
+        state: started
+        enabled: yes
