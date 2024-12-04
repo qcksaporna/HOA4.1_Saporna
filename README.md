@@ -1,113 +1,74 @@
 ---
-- name: Install NTP on Controller Node
-  hosts: controller
-  become: true
-  tasks:
-    - name: Install NTP
-      apt:
-        name: ntp
-        state: present
-      tags:
-        - ntp  # Tag this task as 'ntp'
+- name: Install and configure NGINX on Debian and CentOS
+  hosts: all
+  become: yes
 
-- name: Install OpenStack Packages on Controller Node
-  hosts: controller
-  become: true
   tasks:
-    - name: Install OpenStack packages (controller services)
+    # Install NGINX on Debian/Ubuntu
+    - name: Install NGINX on Debian or Ubuntu
       apt:
-        name: "{{ item }}"
+        name: nginx
         state: present
-      loop:
-        - python3-openstackclient
-        - nova-api
-        - nova-scheduler
-        - nova-conductor
-        - openstack-dashboard
-        - rabbitmq-server
-        - memcached
-        - mysql-server
-        - apache2
-        - libapache2-mod-wsgi
-        - neutron-server
-        - keystone
-        - glance
-      when: ansible_os_family == 'Debian'
-      tags:
-        - openstack_packages  # Tag for the OpenStack packages
+      when: ansible_os_family == "Debian"
 
-- name: Install SQL Database (MySQL) on Controller Node
-  hosts: controller
-  become: true
-  tasks:
-    - name: Install MySQL Server
-      apt:
-        name: mysql-server
+    # Install NGINX on CentOS
+    - name: Install NGINX on CentOS
+      yum:
+        name: nginx
         state: present
-      tags:
-        - mysql  # Tag for MySQL installation
+      when: ansible_os_family == "RedHat"
 
-    - name: Start MySQL Service
+    # Ensure NGINX service is running
+    - name: Ensure NGINX is running
       service:
-        name: mysql
+        name: nginx
         state: started
         enabled: yes
-      tags:
-        - mysql_service  # Tag for MySQL service
 
-- name: Install Message Queue (RabbitMQ) on Controller Node
-  hosts: controller
-  become: true
-  tasks:
-    - name: Install RabbitMQ
+    # Create a custom NGINX welcome page
+    - name: Create a custom index.html for NGINX
+      copy:
+        content: "Welcome to NGINX managed by Ansible!"
+        dest: "/usr/share/nginx/html/index.html"
+
+    # Open HTTP port in the firewall for Debian-based systems
+    - name: Open firewall for HTTP (Debian)
+      ufw:
+        rule: allow
+        name: 'nginx HTTP'
+      when: ansible_os_family == "Debian"
+
+    # Open HTTP port in the firewall for CentOS-based systems
+    - name: Open firewall for HTTP (CentOS)
+      firewalld:
+        service: http
+        permanent: true
+        state: enabled
+      when: ansible_os_family == "RedHat"
+
+    # Install Netdata for monitoring
+    - name: Install Netdata on Debian or Ubuntu
       apt:
-        name: rabbitmq-server
+        name: netdata
         state: present
-      tags:
-        - rabbitmq  # Tag for RabbitMQ installation
+      when: ansible_os_family == "Debian"
 
-    - name: Start RabbitMQ Service
+    - name: Install Netdata on CentOS
+      yum:
+        name: netdata
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    # Ensure Netdata service is running
+    - name: Ensure Netdata is running
       service:
-        name: rabbitmq-server
+        name: netdata
         state: started
         enabled: yes
-      tags:
-        - rabbitmq_service  # Tag for RabbitMQ service
 
-- name: Install Memcached on Controller Node
-  hosts: controller
-  become: true
-  tasks:
-    - name: Install Memcached
-      apt:
-        name: memcached
-        state: present
-      tags:
-        - memcached  # Tag for Memcached installation
-
-    - name: Start Memcached Service
-      service:
-        name: memcached
-        state: started
-        enabled: yes
-      tags:
-        - memcached_service  # Tag for Memcached service
-
-- name: Install and Configure Etcd on Controller Node
-  hosts: controller
-  become: true
-  tasks:
-    - name: Install Etcd
-      apt:
-        name: etcd
-        state: present
-      tags:
-        - etcd  # Tag for Etcd installation
-
-    - name: Start Etcd Service
-      service:
-        name: etcd
-        state: started
-        enabled: yes
-      tags:
-        - etcd_service  # Tag for Etcd service
+    # Modify MOTD (Message of the Day)
+    - name: Change MOTD
+      copy:
+        content: "Ansible Managed by {{ ansible_user }}"
+        dest: "/etc/motd"
+      become: yes
