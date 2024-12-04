@@ -1,41 +1,56 @@
 ---
-- name: Install and configure NGINX on Debian and CentOS
+- name: Install and configure Apache HTTP Server and Netdata on Debian and CentOS
   hosts: all
   become: yes
 
   tasks:
-    # Install NGINX on Debian/Ubuntu
-    - name: Install NGINX on Debian or Ubuntu
+    # Install Apache on Debian/Ubuntu
+    - name: Install Apache on Debian or Ubuntu
       apt:
-        name: nginx
+        name: apache2
         state: present
       when: ansible_os_family == "Debian"
 
-    # Install NGINX on CentOS
-    - name: Install NGINX on CentOS
+    # Install Apache on CentOS
+    - name: Install Apache on CentOS
       yum:
-        name: nginx
+        name: httpd
         state: present
       when: ansible_os_family == "RedHat"
 
-    # Ensure NGINX service is running
-    - name: Ensure NGINX is running
+    # Ensure Apache service is running
+    - name: Ensure Apache is running
       service:
-        name: nginx
+        name: apache2
         state: started
         enabled: yes
+      when: ansible_os_family == "Debian"
 
-    # Create a custom NGINX welcome page
-    - name: Create a custom index.html for NGINX
+    - name: Ensure Apache is running on CentOS
+      service:
+        name: httpd
+        state: started
+        enabled: yes
+      when: ansible_os_family == "RedHat"
+
+    # Create a custom Apache welcome page
+    - name: Create a custom index.html for Apache
       copy:
-        content: "Welcome to NGINX managed by Ansible!"
-        dest: "/usr/share/nginx/html/index.html"
+        content: "Welcome to Apache managed by Ansible!"
+        dest: "/var/www/html/index.html"
+      when: ansible_os_family == "Debian"
+
+    - name: Create a custom index.html for Apache on CentOS
+      copy:
+        content: "Welcome to Apache managed by Ansible!"
+        dest: "/var/www/html/index.html"
+      when: ansible_os_family == "RedHat"
 
     # Open HTTP port in the firewall for Debian-based systems
     - name: Open firewall for HTTP (Debian)
       ufw:
         rule: allow
-        name: 'nginx HTTP'
+        name: 'Apache'
       when: ansible_os_family == "Debian"
 
     # Open HTTP port in the firewall for CentOS-based systems
