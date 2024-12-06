@@ -3,19 +3,19 @@
   hosts: controller
   tasks:
     - name: Install required packages for Neutron
-      yum:
+      apt:
         name: 
-          - openstack-neutron
-          - openstack-neutron-ml2
-          - openstack-neutron-linuxbridge
+          - neutron-server
+          - neutron-plugin-ml2
+          - neutron-linuxbridge-agent
         state: present
+        update_cache: yes
 
     - name: Configure Neutron - Update neutron.conf
       lineinfile:
         path: /etc/neutron/neutron.conf
         regexp: '^auth_strategy='
         line: 'auth_strategy = keystone'
-        state: present
 
     - name: Configure Neutron - Set database connection
       lineinfile:
@@ -54,19 +54,20 @@
   hosts: controller
   tasks:
     - name: Install Horizon package
-      yum:
+      apt:
         name: openstack-dashboard
         state: present
+        update_cache: yes
 
     - name: Configure Horizon - Update local_settings
       lineinfile:
-        path: /etc/openstack-dashboard/local_settings
+        path: /etc/openstack-dashboard/local_settings.py
         regexp: '^ALLOWED_HOSTS ='
         line: "ALLOWED_HOSTS = ['*']"
 
     - name: Restart Apache
       systemd:
-        name: httpd
+        name: apache2
         state: restarted
         enabled: true
 
@@ -74,12 +75,12 @@
   hosts: controller
   tasks:
     - name: Install Cinder packages
-      yum:
+      apt:
         name:
-          - openstack-cinder
-          - openstack-cinder-api
-          - openstack-cinder-scheduler
+          - cinder-api
+          - cinder-scheduler
         state: present
+        update_cache: yes
 
     - name: Configure Cinder
       lineinfile:
@@ -93,17 +94,18 @@
         state: started
         enabled: true
       loop:
-        - openstack-cinder-api
-        - openstack-cinder-scheduler
+        - cinder-api
+        - cinder-scheduler
 
 - name: Configure Neutron on Compute Node
   hosts: compute
   tasks:
     - name: Install Neutron packages
-      yum:
+      apt:
         name:
-          - openstack-neutron-linuxbridge
+          - neutron-linuxbridge-agent
         state: present
+        update_cache: yes
 
     - name: Configure Neutron on Compute Node
       lineinfile:
