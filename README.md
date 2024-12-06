@@ -1,96 +1,120 @@
-[DEFAULT]
-# The identity API version to use
-identity_api_version = 3
+---
+- name: Install Neutron on the Controller Node
+  hosts: controller
+  tasks:
+    - name: Install required packages for Neutron
+      yum:
+        name: 
+          - openstack-neutron
+          - openstack-neutron-ml2
+          - openstack-neutron-linuxbridge
+        state: present
 
-# Keystone endpoint settings
-public_endpoint = http://{{ ansible_host }}:5000/v3
-admin_endpoint = http://{{ ansible_host }}:35357/v3
-internal_endpoint = http://{{ ansible_host }}:5000/v3
+    - name: Configure Neutron - Update neutron.conf
+      lineinfile:
+        path: /etc/neutron/neutron.conf
+        regexp: '^auth_strategy='
+        line: 'auth_strategy = keystone'
+        state: present
 
-# Identity backend
-driver = sql
+    - name: Configure Neutron - Set database connection
+      lineinfile:
+        path: /etc/neutron/neutron.conf
+        regexp: '^connection='
+        line: 'connection = mysql+pymysql://neutron:NEUTRON_DBPASS@controller/neutron'
 
-# Database connection
-sql_connection = mysql+pymysql://keystone:{{ keystone_db_password }}@{{ keystone_db_host }}/keystone
+    - name: Configure Modular Layer 2 (ML2)
+      blockinfile:
+        path: /etc/neutron/plugins/ml2/ml2_conf.ini
+        block: |
+          [ml2]
+          type_drivers = flat,vlan,vxlan
+          tenant_network_types = vxlan
+          mechanism_drivers = linuxbridge,l2population
 
-# Authentication settings
-admin_token = {{ keystone_admin_token }}
+          [ml2_type_vxlan]
+          vni_ranges = 1:1000
 
-# Logging settings
-log_level = INFO
-log_dir = /var/log/keystone
+          [securitygroup]
+          enable_security_group = true
+          firewall_driver = neutron.agent.linux.iptables_firewall.IptablesFirewallDriver
 
-[DEFAULT]
-# The Glance API version
-api_version = 2
+    - name: Start and enable Neutron services
+      systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+      loop:
+        - neutron-server
+        - neutron-linuxbridge-agent
+        - neutron-dhcp-agent
+        - neutron-metadata-agent
 
-# Glance API endpoints
-# These endpoints are typically used to define how clients will communicate with the Glance service
-public_endpoint = http://{{ ansible_host }}:9292
-admin_endpoint = http://{{ ansible_host }}:9292
-internal_endpoint = http://{{ ansible_host }}:9292
+- name: Install Horizon on the Controller Node
+  hosts: controller
+  tasks:
+    - name: Install Horizon package
+      yum:
+        name: openstack-dashboard
+        state: present
 
-# Database connection details
-sql_connection = mysql+pymysql://glance:{{ glance_db_password }}@{{ glance_db_host }}/glance
+    - name: Configure Horizon - Update local_settings
+      lineinfile:
+        path: /etc/openstack-dashboard/local_settings
+        regexp: '^ALLOWED_HOSTS ='
+        line: "ALLOWED_HOSTS = ['*']"
 
-# Set up the Glance image cache directory
-image_cache_dir = /var/lib/glance/images
+    - name: Restart Apache
+      systemd:
+        name: httpd
+        state: restarted
+        enabled: true
 
-# Set up the backend store for images (e.g., file, swift, etc.)
-default_store = file
+- name: Install Cinder on the Controller Node
+  hosts: controller
+  tasks:
+    - name: Install Cinder packages
+      yum:
+        name:
+          - openstack-cinder
+          - openstack-cinder-api
+          - openstack-cinder-scheduler
+        state: present
 
-# Glance registry settings
-registry_host = {{ ansible_host }}
-registry_port = 9191
+    - name: Configure Cinder
+      lineinfile:
+        path: /etc/cinder/cinder.conf
+        regexp: '^auth_strategy='
+        line: 'auth_strategy = keystone'
 
-# Authentication settings
-auth_url = http://{{ ansible_host }}:5000/v3
-auth_type = password
-project_domain_name = default
-user_domain_name = default
-project_name = service
-username = glance
-password = {{ glance_service_password }}
+    - name: Start and enable Cinder services
+      systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+      loop:
+        - openstack-cinder-api
+        - openstack-cinder-scheduler
 
-# Logging settings
-log_level = INFO
-log_dir = /var/log/glance
+- name: Configure Neutron on Compute Node
+  hosts: compute
+  tasks:
+    - name: Install Neutron packages
+      yum:
+        name:
+          - openstack-neutron-linuxbridge
+        state: present
 
-[DEFAULT]
-# The Nova API version
-api_version = 2
+    - name: Configure Neutron on Compute Node
+      lineinfile:
+        path: /etc/neutron/neutron.conf
+        regexp: '^auth_strategy='
+        line: 'auth_strategy = keystone'
 
-# Nova API endpoints
-public_endpoint = http://{{ ansible_host }}:8774/v2
-admin_endpoint = http://{{ ansible_host }}:8774/v2
-internal_endpoint = http://{{ ansible_host }}:8774/v2
-
-# Database connection details
-sql_connection = mysql+pymysql://nova:{{ nova_db_password }}@{{ nova_db_host }}/nova
-
-# RabbitMQ settings for messaging service
-rpc_backend = rabbit
-rabbit_host = {{ rabbitmq_host }}
-rabbit_userid = nova
-rabbit_password = {{ rabbitmq_password }}
-
-# Glance image service endpoint
-image_service = glance
-glance_api_servers = http://{{ glance_host }}:9292
-
-# Identity service endpoint (Keystone)
-auth_strategy = keystone
-keystone_authtoken.auth_url = http://{{ keystone_host }}:5000/v3
-keystone_authtoken.username = nova
-keystone_authtoken.password = {{ nova_password }}
-keystone_authtoken.project_name = service
-keystone_authtoken.user_domain_name = default
-keystone_authtoken.project_domain_name = default
-
-# Networking settings (Neutron)
-network_api_class = nova.network.neutronv2.api.API
-neutron_url = http://{{ neutron_host }}:9696
-
-# Logging settings
-log_level = INFO
-log_dir = /var/log/nova
+    - name: Start and enable Neutron services
+      systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+      loop:
+        - neutron-linuxbridge-agent
