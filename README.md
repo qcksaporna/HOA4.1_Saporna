@@ -1,89 +1,118 @@
 ---
-- name: Install and configure Apache HTTP Server and Netdata on Debian and CentOS
-  hosts: all
-  become: yes
-
+- name: Install OpenStack Keystone (Identity Service) on controller
+  hosts: controller
+  become: true
   tasks:
-    # Install Apache on Debian/Ubuntu
-    - name: Install Apache on Debian or Ubuntu
+    - name: Install Keystone and dependencies
       apt:
-        name: apache2
+        name:
+          - keystone
+          - python3-keystoneclient
+          - apache2
+          - libapache2-mod-wsgi
         state: present
-      when: ansible_os_family == "Debian"
+        update_cache: yes
 
-    # Install Apache on CentOS
-    - name: Install Apache on CentOS
-      yum:
-        name: httpd
-        state: present
-      when: ansible_os_family == "RedHat"
+    - name: Configure Keystone database
+      command: keystone-manage db_sync
 
-    # Ensure Apache service is running
-    - name: Ensure Apache is running
+    - name: Start and enable Apache and Keystone
       service:
         name: apache2
         state: started
-        enabled: yes
-      when: ansible_os_family == "Debian"
+        enabled: true
 
-    - name: Ensure Apache is running on CentOS
+    - name: Configure Keystone API endpoint
+      template:
+        src: keystone_api_endpoint.j2
+        dest: /etc/keystone/keystone.conf
+
+    - name: Restart Apache to apply Keystone settings
       service:
-        name: httpd
-        state: started
-        enabled: yes
-      when: ansible_os_family == "RedHat"
+        name: apache2
+        state: restarted
 
-    # Create a custom Apache welcome page
-    - name: Create a custom index.html for Apache
-      copy:
-        content: "Welcome to Apache managed by Ansible!"
-        dest: "/var/www/html/index.html"
-      when: ansible_os_family == "Debian"
-
-    - name: Create a custom index.html for Apache on CentOS
-      copy:
-        content: "Welcome to Apache managed by Ansible!"
-        dest: "/var/www/html/index.html"
-      when: ansible_os_family == "RedHat"
-
-    # Open HTTP port in the firewall for Debian-based systems
-    - name: Open firewall for HTTP (Debian)
-      ufw:
-        rule: allow
-        name: 'Apache'
-      when: ansible_os_family == "Debian"
-
-    # Open HTTP port in the firewall for CentOS-based systems
-    - name: Open firewall for HTTP (CentOS)
-      firewalld:
-        service: http
-        permanent: true
-        state: enabled
-      when: ansible_os_family == "RedHat"
-
-    # Install Netdata for monitoring
-    - name: Install Netdata on Debian or Ubuntu
+- name: Install OpenStack Glance (Imaging Service) on controller
+  hosts: controller
+  become: true
+  tasks:
+    - name: Install Glance and dependencies
       apt:
-        name: netdata
+        name:
+          - glance
+          - python3-glanceclient
         state: present
-      when: ansible_os_family == "Debian"
+        update_cache: yes
 
-    - name: Install Netdata on CentOS
-      yum:
-        name: netdata
-        state: present
-      when: ansible_os_family == "RedHat"
+    - name: Configure Glance database
+      command: glance-manage db_sync
 
-    # Ensure Netdata service is running
-    - name: Ensure Netdata is running
+    - name: Start and enable Glance services
       service:
-        name: netdata
+        name: glance-api
         state: started
-        enabled: yes
+        enabled: true
 
-    # Modify MOTD (Message of the Day)
-    - name: Change MOTD
-      copy:
-        content: "Ansible Managed by {{ ansible_user }}"
-        dest: "/etc/motd"
-      become: yes
+    - name: Configure Glance API endpoint
+      template:
+        src: glance_api_endpoint.j2
+        dest: /etc/glance/glance-api.conf
+
+    - name: Restart Glance services
+      service:
+        name: glance-api
+        state: restarted
+
+- name: Install OpenStack Nova (Compute Service) on controller
+  hosts: controller
+  become: true
+  tasks:
+    - name: Install Nova and dependencies
+      apt:
+        name:
+          - nova-api
+          - nova-conductor
+          - nova-scheduler
+          - nova-compute
+          - python3-novaclient
+        state: present
+        update_cache: yes
+
+    - name: Configure Nova database
+      command: nova-manage db_sync
+
+    - name: Start and enable Nova services
+      service:
+        name: nova-api
+        state: started
+        enabled: true
+
+    - name: Configure Nova API endpoint
+      template:
+        src: nova_api_endpoint.j2
+        dest: /etc/nova/nova.conf
+
+    - name: Restart Nova services
+      service:
+        name: nova-api
+        state: restarted
+
+- name: Install OpenStack Nova (Compute Service) on compute node
+  hosts: compute
+  become: true
+  tasks:
+    - name: Install Nova and dependencies
+      apt:
+        name:
+          - nova-compute
+        state: present
+        update_cache: yes
+
+    - name: Configure Nova compute service
+      command: nova-compute --config-file /etc/nova/nova.conf
+
+    - name: Start and enable Nova compute service
+      service:
+        name: nova-compute
+        state: started
+        enabled: true
