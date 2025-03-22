@@ -1,7 +1,8 @@
 ---
-- name: Collect log files from the Control node
+- name: Collect logs from the Control node using journalctl
   hosts: control-node
   gather_facts: false
+  become: yes
   tasks:
     - name: Ensure the log directory exists on the Manage node
       file:
@@ -10,20 +11,12 @@
         mode: '0755'
       delegate_to: manage-node
 
-    - name: Copy syslog file from Control node to Manage node
-      fetch:
-        src: /var/log/syslog
-        dest: /tmp/logs/syslog
-        flat: yes
+    - name: Collect system logs using journalctl
+      command: journalctl --since "2025-03-22" --until "2025-03-23"  # Adjust the date/time range as needed
+      register: journal_logs
 
-    - name: Copy messages file from Control node to Manage node
-      fetch:
-        src: /var/log/messages
-        dest: /tmp/logs/messages
-        flat: yes
-
-    - name: Copy auth.log file from Control node to Manage node
-      fetch:
-        src: /var/log/auth.log
-        dest: /tmp/logs/auth.log
-        flat: yes
+    - name: Save journal logs to file on Manage node
+      copy:
+        content: "{{ journal_logs.stdout }}"
+        dest: "/tmp/logs/journal_logs.txt"
+      delegate_to: manage-node
