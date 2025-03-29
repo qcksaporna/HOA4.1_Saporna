@@ -10,28 +10,34 @@
         name: tshark
         state: present
 
-    - name: Extract executable from the PCAP file using tshark
+    - name: Extract data from the PCAP file using tshark
       shell: |
-        tshark -r /tmp/sample.pcap -T fields -e data > /tmp/extracted_data.bin
+        tshark -r /home/qcksaporna1/pcaps/sample.pcap -T fields -e data > /tmp/extracted_data.bin
       args:
         chdir: /tmp
 
-    - name: Identify if the extracted data is an executable
+    - name: Check if the extracted file is an executable
       shell: |
         file /tmp/extracted_data.bin
       register: file_type
+      ignore_errors: true  # Continue even if this step fails
 
-    - name: Move extracted file if it is an executable
-      when: "'executable' in file_type.stdout"
+    - name: Debug file type of the extracted data
+      debug:
+        msg: "The file type is: {{ file_type.stdout }}"
+
+    - name: Check if the file is executable before moving
       command: mv /tmp/extracted_data.bin /tmp/extracted_executable
+      when: "'executable' in file_type.stdout"
 
     - name: Ensure correct permissions for the extracted executable
       file:
         path: /tmp/extracted_executable
         mode: '0755'
         state: file
+      when: "'executable' in file_type.stdout"
 
-TASK [Extract executable from the PCAP file using tshark] **********************
-fatal: [control-node]: FAILED! => {"changed": true, "cmd": "tshark -r /tmp/sample.pcap -T fields -e data > /tmp/extracted_data.bin\n", "delta": "0:00:00.144449", "end": "2025-03-29 08:35:09.508362", "msg": "non-zero return code", "rc": 2, "start": "2025-03-29 08:35:09.363913", "stderr": "Running as user \"root\" and group \"root\". This could be dangerous.\ntshark: The file \"/tmp/sample.pcap\" doesn't exist.", "stderr_lines": ["Running as user \"root\" and group \"root\". This could be dangerous.", "tshark: The file \"/tmp/sample.pcap\" doesn't exist."], "stdout": "", "stdout_lines": []}
-
-
+    - name: Notify if no executable found in the data
+      debug:
+        msg: "No executable found in the extracted data."
+      when: "'executable' not in file_type.stdout"
