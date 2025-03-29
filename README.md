@@ -1,44 +1,52 @@
 ---
-- name: Extract executable from PCAP on control node
-  hosts: control-node
-  become: false
+- name: Extract Executable from PCAP and Store Locally on Control Node
+  hosts: control
+  gather_facts: yes
   tasks:
-    - name: Check if PCAP file exists
-      stat:
-        path: "/home/qcksaporna1/pcaps/sample.pcap"
-      register: pcap_file_status
 
-    - name: Fail if PCAP file doesn't exist
-      fail:
-        msg: "PCAP file does not exist!"
-      when: pcap_file_status.stat.exists == false
+    - name: Check if tshark is installed
+      ansible.builtin.command:
+        cmd: tshark -v
+      register: tshark_check
+      failed_when: false
 
-    - name: Create output directory if it does not exist
-      file:
-        path: "/tmp"
-        state: directory
-        mode: '0755'
+    - name: Install tshark if not present
+      ansible.builtin.yum:
+        name: tshark
+        state: present
+      when: tshark_check.rc != 0
 
-    - name: Extract data from PCAP using tshark
-      shell: |
-        tshark -r /home/qcksaporna1/pcaps/sample.pcap -Y "http" -T fields -e http.file_data > /tmp/extracted_data.bin
-      register: tshark_output
-      failed_when: tshark_output.rc != 0
+    - name: Ensure PCAP file is present
+      ansible.builtin.stat:
+        path: /home/qcksaporna1/pcaps/file.pcap
+      register: pcap_file
 
-    - name: Check if the extracted file exists
-      stat:
-        path: "/tmp/extracted_data.bin"
-      register: extracted_file_status
+    - name: Fail if PCAP file is missing
+      ansible.builtin.fail:
+        msg: "PCAP file not found on control node"
+      when: not pcap_file.stat.exists
 
-    - name: Fail if no executable data was extracted
-      fail:
-        msg: "No executable data extracted from the PCAP!"
-      when: extracted_file_status.stat.size == 0
+    - name: Extract executable from PCAP using tshark
+      ansible.builtin.command:
+        cmd: "tshark -r /home/qcksaporna1/pcaps/file.pcap -T fields -e data > /tmp/extracted_executable.bin"
+      register: extracted_executable
+      failed_when: false
 
-    - name: Display file info about extracted data
-      command: file /tmp/extracted_data.bin
-      register: file_info
+    - name: Check if the executable was extracted
+      ansible.builtin.stat:
+        path: /tmp/extracted_executable.bin
+      register: extracted_executable_stat
 
-    - name: Show extracted file details
-      debug:
-        msg: "Extracted file info: {{ file_info.stdout }}"
+    - name: Fail if extraction failed
+      ansible.builtin.fail:
+        msg: "Executable extraction failed"
+      when: not extracted_executable_stat.stat.exists
+
+    - name: Notify of successful extraction
+      ansible.builtin.debug:
+        msg: "Executable successfully extracted and saved on control node at /tmp/extracted_executable.bin"
+
+    - name: Clean up temporary executable on control node
+      ansible.builtin.file:
+        path: /tmp/extracted_executable.bin
+        state: absent
