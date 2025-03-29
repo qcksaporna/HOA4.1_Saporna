@@ -29,6 +29,9 @@
       command:
         cmd: openssl req -newkey rsa:2048 -nodes -keyout /etc/ssl/my_ca/server.key -out /etc/ssl/my_ca/server.csr -subj "/CN=localhost"
         creates: /etc/ssl/my_ca/server.key
+TASK [Generate self-signed CA certificate] *************************************
+fatal: [control-node]: FAILED! => {"changed": true, "cmd": ["openssl", "req", "-new", "-x509", "-key", "/etc/ssl/my_ca/ca.key", "-out", "/etc/ssl/my_ca/ca.crt", "-days", "3650", "-subj", "/CN=My Custom CA"], "delta": "0:00:00.003806", "end": "2025-03-29 10:25:49.401788", "msg": "non-zero return code", "rc": 1, "start": "2025-03-29 10:25:49.397982", "stderr": "unable to load Private Key\n139904651497920:error:0909006C:PEM routines:get_name:no start line:../crypto/pem/pem_lib.c:745:Expecting: ANY PRIVATE KEY", "stderr_lines": ["unable to load Private Key", "139904651497920:error:0909006C:PEM routines:get_name:no start line:../crypto/pem/pem_lib.c:745:Expecting: ANY PRIVATE KEY"], "stdout": "", "stdout_lines": []}
+
 
     - name: Sign server certificate with CA
       command:
