@@ -32,3 +32,7 @@
         path: /tmp/extracted_executable
         mode: '0755'
         state: file
+
+
+      fatal: [control-node]: FAILED! => {"changed": true, "cmd": "tshark -r /home/qcksaporna1/pcaps/sample.pcap -T fields -e data > /tmp/extracted_data.bin\n", "delta": "0:00:03.661627", "end": "2025-03-29 08:29:49.469571", "msg": "non-zero return code", "rc": 2, "start": "2025-03-29 08:29:45.807944", "stderr": "Running as user \"root\" and group \"root\". This could be dangerous.\ntshark: The file \"/home/qcksaporna1/pcaps/sample.pcap\" doesn't exist.", "stderr_lines": ["Running as user \"root\" and group \"root\". This could be dangerous.", "tshark: The file \"/home/qcksaporna1/pcaps/sample.pcap\" doesn't exist."], "stdout": "", "stdout_lines": []}
+
