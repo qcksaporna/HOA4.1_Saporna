@@ -9,7 +9,7 @@
         state: present
         update_cache: yes
 
-    - name: Create directory for CA
+    - name: Create directory for CA and server files
       file:
         path: "/etc/ssl/my_ca"
         state: directory
@@ -34,9 +34,39 @@
         cmd: openssl req -new -x509 -key /etc/ssl/my_ca/ca.key -out /etc/ssl/my_ca/ca.crt -days 3650 -subj "/CN=My Custom CA"
         creates: /etc/ssl/my_ca/ca.crt
 
+    - name: Debug: Check if the server private key exists
+      stat:
+        path: /etc/ssl/my_ca/server.key
+      register: server_key_status
 
-      TASK [Generate self-signed CA certificate] *************************************
-fatal: [control-node]: FAILED! => {"changed": true, "cmd": ["openssl", "req", "-new", "-x509", "-key", "/etc/ssl/my_ca/ca.key", "-out", "/etc/ssl/my_ca/ca.crt", "-days", "3650", "-subj", "/CN=My Custom CA"], "delta": "0:00:00.004306", "end": "2025-03-29 10:31:00.654675", "msg": "non-zero return code", "rc": 1, "start": "2025-03-29 10:31:00.650369", "stderr": "unable to load Private Key\n140709633118656:error:0909006C:PEM routines:get_name:no start line:../crypto/pem/pem_lib.c:745:Expecting: ANY PRIVATE KEY", "stderr_lines": ["unable to load Private Key", "140709633118656:error:0909006C:PEM routines:get_name:no start line:../crypto/pem/pem_lib.c:745:Expecting: ANY PRIVATE KEY"], "stdout": "", "stdout_lines": []}
+    - name: Show status of server private key
+      debug:
+        var: server_key_status
 
-PLAY RECAP *********************************************************************
-control-node               : ok=6    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0  
+    - name: Generate SSL certificate for web server (private key and CSR)
+      command:
+        cmd: openssl req -newkey rsa:2048 -nodes -keyout /etc/ssl/my_ca/server.key -out /etc/ssl/my_ca/server.csr -subj "/CN=localhost"
+        creates: /etc/ssl/my_ca/server.key
+
+    - name: Debug: Check if the server CSR file exists
+      stat:
+        path: /etc/ssl/my_ca/server.csr
+      register: server_csr_status
+
+    - name: Show status of server CSR
+      debug:
+        var: server_csr_status
+
+    - name: Sign server certificate with CA
+      command:
+        cmd: openssl x509 -req -in /etc/ssl/my_ca/server.csr -CA /etc/ssl/my_ca/ca.crt -CAkey /etc/ssl/my_ca/ca.key -CAcreateserial -out /etc/ssl/my_ca/server.crt -days 3650
+        creates: /etc/ssl/my_ca/server.crt
+
+    - name: Debug: Check if the server certificate file exists
+      stat:
+        path: /etc/ssl/my_ca/server.crt
+      register: server_crt_status
+
+    - name: Show status of server certificate
+      debug:
+        var: server_crt_status
