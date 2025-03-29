@@ -33,3 +33,10 @@
       command:
         cmd: openssl req -new -x509 -key /etc/ssl/my_ca/ca.key -out /etc/ssl/my_ca/ca.crt -days 3650 -subj "/CN=My Custom CA"
         creates: /etc/ssl/my_ca/ca.crt
+
+
+      TASK [Generate self-signed CA certificate] *************************************
+fatal: [control-node]: FAILED! => {"changed": true, "cmd": ["openssl", "req", "-new", "-x509", "-key", "/etc/ssl/my_ca/ca.key", "-out", "/etc/ssl/my_ca/ca.crt", "-days", "3650", "-subj", "/CN=My Custom CA"], "delta": "0:00:00.004306", "end": "2025-03-29 10:31:00.654675", "msg": "non-zero return code", "rc": 1, "start": "2025-03-29 10:31:00.650369", "stderr": "unable to load Private Key\n140709633118656:error:0909006C:PEM routines:get_name:no start line:../crypto/pem/pem_lib.c:745:Expecting: ANY PRIVATE KEY", "stderr_lines": ["unable to load Private Key", "140709633118656:error:0909006C:PEM routines:get_name:no start line:../crypto/pem/pem_lib.c:745:Expecting: ANY PRIVATE KEY"], "stdout": "", "stdout_lines": []}
+
+PLAY RECAP *********************************************************************
+control-node               : ok=6    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0  
