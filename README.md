@@ -1,43 +1,44 @@
 ---
-- name: Extract Executable from PCAP on Control Node
+- name: Extract executable from PCAP on control node
   hosts: control-node
-  remote_user: qcksaporna1
-  become: true
+  become: false
   tasks:
+    - name: Check if PCAP file exists
+      stat:
+        path: "/home/qcksaporna1/pcaps/sample.pcap"
+      register: pcap_file_status
 
-    - name: Ensure tshark is installed on the control node
-      package:
-        name: tshark
-        state: present
+    - name: Fail if PCAP file doesn't exist
+      fail:
+        msg: "PCAP file does not exist!"
+      when: pcap_file_status.stat.exists == false
 
-    - name: Extract data from the PCAP file using tshark
-      shell: |
-        tshark -r /home/qcksaporna1/pcaps/sample.pcap -T fields -e data > /tmp/extracted_data.bin
-      args:
-        chdir: /tmp
-
-    - name: Check if the extracted file is an executable
-      shell: |
-        file /tmp/extracted_data.bin
-      register: file_type
-      ignore_errors: true  # Continue even if this step fails
-
-    - name: Debug file type of the extracted data
-      debug:
-        msg: "The file type is: {{ file_type.stdout }}"
-
-    - name: Check if the file is executable before moving
-      command: mv /tmp/extracted_data.bin /tmp/extracted_executable
-      when: "'executable' in file_type.stdout"
-
-    - name: Ensure correct permissions for the extracted executable
+    - name: Create output directory if it does not exist
       file:
-        path: /tmp/extracted_executable
+        path: "/tmp"
+        state: directory
         mode: '0755'
-        state: file
-      when: "'executable' in file_type.stdout"
 
-    - name: Notify if no executable found in the data
+    - name: Extract data from PCAP using tshark
+      shell: |
+        tshark -r /home/qcksaporna1/pcaps/sample.pcap -Y "http" -T fields -e http.file_data > /tmp/extracted_data.bin
+      register: tshark_output
+      failed_when: tshark_output.rc != 0
+
+    - name: Check if the extracted file exists
+      stat:
+        path: "/tmp/extracted_data.bin"
+      register: extracted_file_status
+
+    - name: Fail if no executable data was extracted
+      fail:
+        msg: "No executable data extracted from the PCAP!"
+      when: extracted_file_status.stat.size == 0
+
+    - name: Display file info about extracted data
+      command: file /tmp/extracted_data.bin
+      register: file_info
+
+    - name: Show extracted file details
       debug:
-        msg: "No executable found in the extracted data."
-      when: "'executable' not in file_type.stdout"
+        msg: "Extracted file info: {{ file_info.stdout }}"
