@@ -1,64 +1,36 @@
 ---
-- name: Capture Network Traffic from Multiple Interfaces and Create PCAP Files
+- name: Generate Certificate Authority with SSL
   hosts: control
-  become: true
-  gather_facts: no
+  become: yes
   tasks:
-
-    - name: Install tshark
-      ansible.builtin.yum:
-        name: tshark
+    - name: Install OpenSSL
+      apt:
+        name: openssl
         state: present
-      when: ansible_facts.packages['tshark'] is not defined
+        update_cache: yes
 
-    - name: Capture traffic from enp0s3 using tshark
-      ansible.builtin.command:
-        cmd: "tshark -i enp0s3 -w /home/qcksaporna1/pcaps/file_enp0s3.pcap -c 100"
-      async: 300
-      poll: 0
+    - name: Create directory for CA
+      file:
+        path: "/etc/ssl/my_ca"
+        state: directory
+        mode: '0755'
 
-    - name: Capture traffic from enp0s8 using tshark
-      ansible.builtin.command:
-        cmd: "tshark -i enp0s8 -w /home/qcksaporna1/pcaps/file_enp0s8.pcap -c 100"
-      async: 300
-      poll: 0
+    - name: Generate CA private key
+      command:
+        cmd: openssl genpkey -algorithm RSA -out /etc/ssl/my_ca/ca.key -aes256
+        creates: /etc/ssl/my_ca/ca.key
 
-    - name: Wait for the PCAP files to be created (enp0s3)
-      ansible.builtin.wait_for:
-        path: "/home/qcksaporna1/pcaps/file_enp0s3.pcap"
-        state: present
-        timeout: 600
+    - name: Generate self-signed CA certificate
+      command:
+        cmd: openssl req -new -x509 -key /etc/ssl/my_ca/ca.key -out /etc/ssl/my_ca/ca.crt -days 3650 -subj "/CN=My Custom CA"
+        creates: /etc/ssl/my_ca/ca.crt
 
-    - name: Wait for the second PCAP file to be created (enp0s8)
-      ansible.builtin.wait_for:
-        path: "/home/qcksaporna1/pcaps/file_enp0s8.pcap"
-        state: present
-        timeout: 600
+    - name: Create SSL certificate for web server
+      command:
+        cmd: openssl req -newkey rsa:2048 -nodes -keyout /etc/ssl/my_ca/server.key -out /etc/ssl/my_ca/server.csr -subj "/CN=localhost"
+        creates: /etc/ssl/my_ca/server.key
 
-    - name: Extract executable files from the first PCAP (enp0s3)
-      ansible.builtin.command:
-        cmd: |
-          tshark -r /home/qcksaporna1/pcaps/file_enp0s3.pcap -Y 'http.content_type contains "application/octet-stream"' -T fields -e frame.time -e ip.src -e ip.dst -e http.file_data > /home/qcksaporna1/pcaps/extracted_files_enp0s3.txt
-      register: extracted_files_enp0s3
-      ignore_errors: yes
-
-    - name: Extract executable files from the second PCAP (enp0s8)
-      ansible.builtin.command:
-        cmd: |
-          tshark -r /home/qcksaporna1/pcaps/file_enp0s8.pcap -Y 'http.content_type contains "application/octet-stream"' -T fields -e frame.time -e ip.src -e ip.dst -e http.file_data > /home/qcksaporna1/pcaps/extracted_files_enp0s8.txt
-      register: extracted_files_enp0s8
-      ignore_errors: yes
-
-    - name: Notify if executable files are extracted from enp0s3
-      ansible.builtin.debug:
-        msg: "Extracted executable files from enp0s3 saved to /home/qcksaporna1/pcaps/extracted_files_enp0s3.txt"
-      when: extracted_files_enp0s3 is not skipped
-
-    - name: Notify if executable files are extracted from enp0s8
-      ansible.builtin.debug:
-        msg: "Extracted executable files from enp0s8 saved to /home/qcksaporna1/pcaps/extracted_files_enp0s8.txt"
-      when: extracted_files_enp0s8 is not skipped
-
-    - name: Notify that the PCAP files have been created
-      ansible.builtin.debug:
-        msg: "PCAP files successfully created and executable files extracted at /home/qcksaporna1/pcaps/"
+    - name: Sign server certificate with CA
+      command:
+        cmd: openssl x509 -req -in /etc/ssl/my_ca/server.csr -CA /etc/ssl/my_ca/ca.crt -CAkey /etc/ssl/my_ca/ca.key -CAcreateserial -out /etc/ssl/my_ca/server.crt -days 3650
+        creates: /etc/ssl/my_ca/server.crt
