@@ -30,3 +30,8 @@
         path: /tmp/extracted_executable
         mode: '0755'
         state: file
+
+TASK [Extract executable from the PCAP file using tshark] **********************
+fatal: [control-node]: FAILED! => {"changed": true, "cmd": "tshark -r /tmp/sample.pcap -T fields -e data > /tmp/extracted_data.bin\n", "delta": "0:00:00.144449", "end": "2025-03-29 08:35:09.508362", "msg": "non-zero return code", "rc": 2, "start": "2025-03-29 08:35:09.363913", "stderr": "Running as user \"root\" and group \"root\". This could be dangerous.\ntshark: The file \"/tmp/sample.pcap\" doesn't exist.", "stderr_lines": ["Running as user \"root\" and group \"root\". This could be dangerous.", "tshark: The file \"/tmp/sample.pcap\" doesn't exist."], "stdout": "", "stdout_lines": []}
+
+
