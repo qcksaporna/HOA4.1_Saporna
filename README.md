@@ -1,52 +1,40 @@
 ---
-- name: Extract Executable from PCAP and Store Locally on Control Node
+- name: Capture Network Traffic from Multiple Interfaces and Create PCAP Files
   hosts: control
-  gather_facts: yes
+  become: true
+  gather_facts: no
   tasks:
 
-    - name: Check if tshark is installed
-      ansible.builtin.command:
-        cmd: tshark -v
-      register: tshark_check
-      failed_when: false
-
-    - name: Install tshark if not present
+    - name: Install tshark
       ansible.builtin.yum:
         name: tshark
         state: present
-      when: tshark_check.rc != 0
+      when: ansible_facts.packages['tshark'] is not defined
 
-    - name: Ensure PCAP file is present
-      ansible.builtin.stat:
-        path: /home/qcksaporna1/pcaps/file.pcap
-      register: pcap_file
-
-    - name: Fail if PCAP file is missing
-      ansible.builtin.fail:
-        msg: "PCAP file not found on control node"
-      when: not pcap_file.stat.exists
-
-    - name: Extract executable from PCAP using tshark
+    - name: Capture traffic from enp0s3 using tshark
       ansible.builtin.command:
-        cmd: "tshark -r /home/qcksaporna1/pcaps/file.pcap -T fields -e data > /tmp/extracted_executable.bin"
-      register: extracted_executable
-      failed_when: false
+        cmd: "tshark -i enp0s3 -w /home/qcksaporna1/pcaps/file_enp0s3.pcap -c 100"
+      async: 300
+      poll: 0
 
-    - name: Check if the executable was extracted
-      ansible.builtin.stat:
-        path: /tmp/extracted_executable.bin
-      register: extracted_executable_stat
+    - name: Capture traffic from enp0s8 using tshark
+      ansible.builtin.command:
+        cmd: "tshark -i enp0s8 -w /home/qcksaporna1/pcaps/file_enp0s8.pcap -c 100"
+      async: 300
+      poll: 0
 
-    - name: Fail if extraction failed
-      ansible.builtin.fail:
-        msg: "Executable extraction failed"
-      when: not extracted_executable_stat.stat.exists
+    - name: Wait for the PCAP files to be created
+      ansible.builtin.wait_for:
+        path: "/home/qcksaporna1/pcaps/file_enp0s3.pcap"
+        state: present
+        timeout: 600
 
-    - name: Notify of successful extraction
+    - name: Wait for the second PCAP file to be created
+      ansible.builtin.wait_for:
+        path: "/home/qcksaporna1/pcaps/file_enp0s8.pcap"
+        state: present
+        timeout: 600
+
+    - name: Notify that the PCAP files have been created
       ansible.builtin.debug:
-        msg: "Executable successfully extracted and saved on control node at /tmp/extracted_executable.bin"
-
-    - name: Clean up temporary executable on control node
-      ansible.builtin.file:
-        path: /tmp/extracted_executable.bin
-        state: absent
+        msg: "PCAP files successfully created at /home/qcksaporna1/pcaps/"
