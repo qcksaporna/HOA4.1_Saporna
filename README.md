@@ -1,72 +1,64 @@
 ---
-- name: Generate Certificate Authority with SSL
-  hosts: control
+- name: Setup firewall on Ubuntu and CentOS
+  hosts: all
   become: yes
+
   tasks:
-    - name: Install OpenSSL
-      apt:
-        name: openssl
+    # Install UFW on Ubuntu
+    - name: Install UFW on Ubuntu
+      ansible.builtin.apt:
+        name: ufw
         state: present
-        update_cache: yes
+      when: ansible_facts.os_family == "Debian"
+      tags: firewall
 
-    - name: Create directory for CA and server files
-      file:
-        path: "/etc/ssl/my_ca"
-        state: directory
-        mode: '0755'
+    # Install Firewalld on CentOS
+    - name: Install Firewalld on CentOS
+      ansible.builtin.yum:
+        name: firewalld
+        state: present
+      when: ansible_facts.os_family == "RedHat"
+      tags: firewall
 
-    - name: Generate CA private key (2048 bits, no encryption)
-      command:
-        cmd: openssl genpkey -algorithm RSA -out /etc/ssl/my_ca/ca.key -pkeyopt rsa_keygen_bits:2048
-        creates: /etc/ssl/my_ca/ca.key
+    # Enable and start UFW on Ubuntu
+    - name: Enable and start UFW on Ubuntu
+      ansible.builtin.systemd:
+        name: ufw
+        state: started
+        enabled: yes
+      when: ansible_facts.os_family == "Debian"
+      tags: firewall
 
-    - name: Debug: Check if the private key file exists
-      stat:
-        path: /etc/ssl/my_ca/ca.key
-      register: ca_key_status
+    # Enable and start Firewalld on CentOS
+    - name: Enable and start Firewalld on CentOS
+      ansible.builtin.systemd:
+        name: firewalld
+        state: started
+        enabled: yes
+      when: ansible_facts.os_family == "RedHat"
+      tags: firewall
 
-    - name: Show status of CA private key file
-      debug:
-        var: ca_key_status
+    # Allow SSH through the firewall on Ubuntu
+    - name: Allow SSH through UFW on Ubuntu
+      ansible.builtin.ufw:
+        rule: allow
+        name: OpenSSH
+      when: ansible_facts.os_family == "Debian"
+      tags: firewall
 
-    - name: Generate self-signed CA certificate
-      command:
-        cmd: openssl req -new -x509 -key /etc/ssl/my_ca/ca.key -out /etc/ssl/my_ca/ca.crt -days 3650 -subj "/CN=My Custom CA"
-        creates: /etc/ssl/my_ca/ca.crt
+    # Allow SSH through the firewall on CentOS
+    - name: Allow SSH through Firewalld on CentOS
+      ansible.builtin.firewalld:
+        service: ssh
+        permanent: yes
+        state: enabled
+        immediate: yes
+      when: ansible_facts.os_family == "RedHat"
+      tags: firewall
 
-    - name: Debug: Check if the server private key exists
-      stat:
-        path: /etc/ssl/my_ca/server.key
-      register: server_key_status
-
-    - name: Show status of server private key
-      debug:
-        var: server_key_status
-
-    - name: Generate SSL certificate for web server (private key and CSR)
-      command:
-        cmd: openssl req -newkey rsa:2048 -nodes -keyout /etc/ssl/my_ca/server.key -out /etc/ssl/my_ca/server.csr -subj "/CN=localhost"
-        creates: /etc/ssl/my_ca/server.key
-
-    - name: Debug: Check if the server CSR file exists
-      stat:
-        path: /etc/ssl/my_ca/server.csr
-      register: server_csr_status
-
-    - name: Show status of server CSR
-      debug:
-        var: server_csr_status
-
-    - name: Sign server certificate with CA
-      command:
-        cmd: openssl x509 -req -in /etc/ssl/my_ca/server.csr -CA /etc/ssl/my_ca/ca.crt -CAkey /etc/ssl/my_ca/ca.key -CAcreateserial -out /etc/ssl/my_ca/server.crt -days 3650
-        creates: /etc/ssl/my_ca/server.crt
-
-    - name: Debug: Check if the server certificate file exists
-      stat:
-        path: /etc/ssl/my_ca/server.crt
-      register: server_crt_status
-
-    - name: Show status of server certificate
-      debug:
-        var: server_crt_status
+    # Reload Firewalld on CentOS (if applicable)
+    - name: Reload Firewalld on CentOS
+      ansible.builtin.command:
+        cmd: firewall-cmd --reload
+      when: ansible_facts.os_family == "RedHat"
+      tags: firewall
