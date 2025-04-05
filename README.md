@@ -38,10 +38,15 @@
       when: ansible_facts.os_family == "RedHat"
       tags: firewall
 
-    # Allow SSH through UFW on Ubuntu (Fixed approach)
+    # Ensure UFW is initialized (on Ubuntu)
+    - name: Ensure UFW is initialized on Ubuntu
+      ansible.builtin.shell: ufw --force enable
+      when: ansible_facts.os_family == "Debian"
+      tags: firewall
+
+    # Allow SSH through UFW on Ubuntu
     - name: Allow SSH through UFW on Ubuntu
-      ansible.builtin.command:
-        cmd: ufw allow OpenSSH
+      ansible.builtin.shell: ufw allow OpenSSH
       when: ansible_facts.os_family == "Debian"
       tags: firewall
 
