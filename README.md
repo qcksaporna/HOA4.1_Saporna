@@ -38,15 +38,14 @@
       when: ansible_facts.os_family == "RedHat"
       tags: firewall
 
-    # Allow SSH through the firewall on Ubuntu
+    # Allow SSH through UFW on Ubuntu (Fixed approach)
     - name: Allow SSH through UFW on Ubuntu
-      ansible.builtin.ufw:
-        rule: allow
-        name: OpenSSH
+      ansible.builtin.command:
+        cmd: ufw allow OpenSSH
       when: ansible_facts.os_family == "Debian"
       tags: firewall
 
-    # Allow SSH through the firewall on CentOS
+    # Allow SSH through Firewalld on CentOS
     - name: Allow SSH through Firewalld on CentOS
       ansible.builtin.firewalld:
         service: ssh
