@@ -1,16 +1,17 @@
 ---
 - name: Block IP Address
-  hosts: checkpoint  # Specify the Check Point firewall device or group in your inventory
-  connection: httpapi  # This is specific to Check Point's API connection
+  hosts: checkpoint  # The Check Point firewall device or group in your inventory
+  connection: httpapi  # Check Point uses httpapi for communication
   
+  vars:
+    ansible_network_os: checkpoint  # Set the network OS for Check Point
+    ansible_user: "your_username"   # Set your Check Point username
+    ansible_password: "your_password"  # Set your Check Point password
+
   tasks:
     - include_role:
-        name: acl_manager  # The role responsible for managing ACLs
-        tasks_from: block_ip  # Specific task in the role to block an IP address
+        name: acl_manager
+        tasks_from: block_ip
       vars:
-        source_ip: 172.17.13.98  # The IP address to block
-        destination_ip: 192.168.0.10  # The destination IP address
-        ansible_network_os: checkpoint  # Define the network OS
-
-TASK [ansible_security.acl_manager : Search source IP host object] *************
-fatal: [192.168.56.113]: FAILED! => {"changed": false, "msg": "Check Point device returned error 404 with message Username and password are required for login"}
+        source_ip: 172.17.13.98
+        destination_ip: 192.168.0.10
