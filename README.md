@@ -10,3 +10,14 @@
         source_ip: 172.17.13.98
         destination_ip: 192.168.0.10
         ansible_network_os: checkpoint
+TASK [include_role : acl_manager] **********************************************
+ERROR! the role 'acl_manager' was not found in /home/qcksaporna1/HOA13.1_saporna/roles:/home/qcksaporna1/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:/home/qcksaporna1/HOA13.1_saporna
+
+The error appears to be in '/home/qcksaporna1/HOA13.1_saporna/playbook.yml': line 7, column 15, but may
+be elsewhere in the file depending on the exact syntax problem.
+
+The offending line appears to be:
+
+    - include_role:
+        name: acl_manager
+              ^ here
