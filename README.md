@@ -16,3 +16,5 @@
         checkpoint_server: "{{ checkpoint_server }}"
         checkpoint_username: "{{ checkpoint_username }}"
         checkpoint_password: "{{ checkpoint_password }}"
+TASK [ansible_security.acl_manager : Search source IP host object] *************
+fatal: [192.168.56.113]: FAILED! => {"changed": false, "msg": "Check Point device returned error 404 with message Username and password are required for login"}
