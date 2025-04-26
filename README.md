@@ -11,3 +11,6 @@
         source_ip: 172.17.13.98  # The IP address to block
         destination_ip: 192.168.0.10  # The destination IP address
         ansible_network_os: checkpoint  # Define the network OS
+
+TASK [ansible_security.acl_manager : Search source IP host object] *************
+fatal: [192.168.56.113]: FAILED! => {"changed": false, "msg": "Check Point device returned error 404 with message Username and password are required for login"}
