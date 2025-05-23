@@ -28,7 +28,6 @@
         name: "{{ item }}"
       loop:
         - OpenSSH
-        - 'Apache Full'
 
     - name: Disable unused services
       apt:
@@ -48,9 +47,8 @@
 
     - name: Enforce SSH key authentication for admin
       authorized_key:
-        user: "{{ admin_user }}"
-        state: present
-        key: "{{ ssh_public_key }}"
+        user: qcksaporna
+        key: "{{ lookup('file', '/home/qcksaporna/.ssh/id_rsa.pub') }}"
 
     - name: Disable SSH password authentication
       lineinfile:
