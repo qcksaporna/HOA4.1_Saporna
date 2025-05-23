@@ -1,109 +1,21 @@
-- hosts: all
-  become: yes
-
-  vars:
-    allowed_ssh_networks:
-      - 192.168.122.0/24
-      - 10.10.10.0/24
-
-    unnecessary_services:
-      - postfix
-      - telnet
-
-    unnecessary_software:
-      - tcpdump
-      - nmap-ncat
-      - wpa_supplicant
+---
+- name: Configure Cisco Router
+  hosts: cisco_routers
+  gather_facts: no
 
   tasks:
-    - name: Perform full patching
-      package:
-        name: "*"
-        state: latest
+    - name: Configure hostname
+      cisco.ios.ios_config:
+        lines:
+          - hostname AnsibleRouter
 
-    - name: Add SSH public key for user
-      authorized_key:
-        user: admin
-        key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
-        state: present
+    - name: Configure interface IP
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/1
+          - ip address 192.168.1.1 255.255.255.0
+          - no shutdown
 
-    - name: Add sudoer rule for local user
-      copy:
-        dest: /etc/sudoers.d/admin
-        src: etc/sudoers.d/admin
-        owner: root
-        group: root
-        mode: 0440
-        validate: /usr/sbin/visudo -csf %s
-
-    - name: Add hardened SSH config
-      copy:
-        dest: /etc/ssh/sshd_config
-        src: etc/ssh/sshd_config
-        owner: root
-        group: root
-        mode: 0600
-      notify: Reload SSH
-
-    - name: Add SSH port to internal zone
-      firewalld:
-        zone: internal
-        service: ssh
-        state: enabled
-        immediate: yes
-        permanent: yes
-
-    - name: Add permitted networks to internal zone
-      firewalld:
-        zone: internal
-        source: "{{ item }}"
-        state: enabled
-        immediate: yes
-        permanent: yes
-      with_items: "{{ allowed_ssh_networks }}"
-
-    - name: Drop ssh from the public zone
-      firewalld:
-        zone: public
-        service: ssh
-        state: disabled
-        immediate: yes
-        permanent: yes
-
-    - name: Remove undesirable packages
-      package:
-        name: "{{ unnecessary_software }}"
-        state: absent
-
-    - name: Stop and disable unnecessary services
-      service:
-        name: "{{ item }}"
-        state: stopped
-        enabled: no
-      with_items: "{{ unnecessary_services }}"
-      ignore_errors: yes
-
-    - name: Set a message of the day
-      copy:
-        dest: /etc/motd
-        src: etc/motd
-        owner: root
-        group: root
-        mode: 0644
-
-    - name: Set a login banner
-      copy:
-        dest: "{{ item }}"
-        src: etc/issue
-        owner: root
-        group: root
-        mode: 0644
-      with_items:
-        - /etc/issue
-        - /etc/issue.net
-
-  handlers:
-    - name: Reload SSH
-      service:
-        name: sshd
-        state: reloaded
+    - name: Save running config
+      cisco.ios.ios_config:
+        save_when: always
